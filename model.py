@@ -43,3 +43,31 @@ importance_final = pd.DataFrame({
     'Feature': X.columns,
     'Importance': final_model.feature_importances_
 }).sort_values(by='Importance', ascending=False)
+
+# --- Provide visible output so the script appears to run when executed ---
+print(f"Accuracy: {accuracy_final:.4f}")
+print(f"F1 score: {f1_final:.4f}")
+print(f"Recall: {recall_final:.4f}")
+
+print("\nTop features by importance:")
+print(importance_final.head(10).to_string(index=False))
+
+# Save feature importances and the trained model to disk for later use
+importance_final.to_csv("feature_importances.csv", index=False)
+
+import pickle
+with open("final_model.pkl", "wb") as f:
+    pickle.dump(final_model, f)
+
+print("\nSaved feature_importances.csv and final_model.pkl")
+
+# Save model metadata (feature order + label mapping) so predictions align with training
+import json
+metadata = {
+    'feature_names': list(X.columns),
+    'label_map': {"0": "No Heart Disease", "1": "Heart Disease"}
+}
+with open("model_metadata.json", "w", encoding="utf-8") as f:
+    json.dump(metadata, f, indent=2)
+
+print("Saved model_metadata.json")
