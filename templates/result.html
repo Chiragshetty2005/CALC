@@ -9,24 +9,41 @@
   <body class="bg-light">
     <div class="container py-5">
       <a href="/" class="btn btn-link mb-3">← Back</a>
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h4 class="card-title">Prediction for patient {{ patient_id }}</h4>
-          <p class="lead">Result: <strong>{{ prediction }}</strong> <small class="text-muted">(raw: {{ raw }})</small></p>
+      <div class="card custom shadow-sm">
+        <div class="card-body result-card">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h4 style="margin:0">Prediction for patient <span class="small-muted">#{{ patient_id }}</span></h4>
+              <div class="small-muted">ID column: {{ id_col }}</div>
+            </div>
+            <div>
+              {% if 'Heart' in prediction %}
+                <span class="badge-pred">{{ prediction }}</span>
+              {% else %}
+                <span class="badge-ok">{{ prediction }}</span>
+              {% endif %}
+            </div>
+          </div>
 
-          <h6>Essential patient details</h6>
-          <ul class="list-group mb-3">
-            {% for k, v in patient_info.items() %}
-              <li class="list-group-item"><strong>{{ k }}:</strong> {{ v }}</li>
-            {% endfor %}
-          </ul>
+          <div class="row">
+            <div class="col-md-6">
+              <h6 class="small-muted">Essential patient details</h6>
+              <div class="mt-2">
+                {% for k, v in patient_info.items() %}
+                  <div class="kv"><div class="text-muted">{{ k }}</div><div><strong>{{ v }}</strong></div></div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <h6 class="small-muted">Top features</h6>
+              <ol class="mt-2">
+                {% for r in reasons %}
+                  <li>{{ r }}</li>
+                {% endfor %}
+              </ol>
+            </div>
+          </div>
 
-          <h6>Why the model decided this (top features)</h6>
-          <ol>
-            {% for r in reasons %}
-              <li>{{ r }}</li>
-            {% endfor %}
-          </ol>
         </div>
       </div>
     </div>

@@ -5,13 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Heart Disease Predictor</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
   </head>
-  <body class="bg-light">
+  <body>
     <div class="container py-5">
-      <div class="card shadow-sm">
+      <div class="hero">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h2 style="margin:0">Heart Disease Predictor</h2>
+            <div class="small-muted">Quickly check a patient from the dataset and see a concise explanation.</div>
+          </div>
+          <div class="text-end">
+            <div class="small-muted">Model: RandomForest</div>
+            <div class="small-muted">Dataset rows: 920</div>
+          </div>
+        </div>
+      </div>
+      <div class="card custom mb-3">
         <div class="card-body">
-          <h3 class="card-title mb-3">Heart Disease Predictor</h3>
-          <p class="text-muted">Enter a patient id (from the dataset) to view essential details and the model's prediction.</p>
 
           <div class="row g-3">
             <div class="col-md-6">
@@ -46,6 +57,44 @@
               }));
             }
 
+            function escapeHtml(unsafe) {
+              return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+            }
+
+            function humanizeInfoJS(info){
+              const out = {};
+              const cp_map = {0:'non-anginal',1:'typical angina',2:'atypical angina',3:'non-anginal',4:'asymptomatic'};
+              const thal_map = {3:'normal',6:'fixed defect',7:'reversible defect',0:'unknown'};
+              for(const [k,v] of Object.entries(info)){
+                let val = v;
+                // convert float-looking values to int when appropriate
+                if(typeof val === 'number' && Number.isFinite(val) && Math.floor(val)===val){ val = Number(val); }
+                if(k.toLowerCase()==='sex'){
+                  out[k] = (val===1||val==='1')? 'Male' : (val===0||val==='0')? 'Female' : String(val);
+                  continue;
+                }
+                if(['exerciseangina','exercise_angina','exang'].includes(k.toLowerCase())){
+                  out[k] = (val===1||val==='1')? 'Yes' : (val===0||val==='0')? 'No' : String(val);
+                  continue;
+                }
+                if(['chestpaintype','chest_pain_type','cp'].includes(k.toLowerCase())){
+                  out[k] = cp_map.hasOwnProperty(val)? cp_map[val] : String(val);
+                  continue;
+                }
+                if(['thalassemia','thal'].includes(k.toLowerCase())){
+                  out[k] = thal_map.hasOwnProperty(val)? thal_map[val] : String(val);
+                  continue;
+                }
+                out[k] = val;
+              }
+              return out;
+            }
+
             input.addEventListener('input', e => showSuggestions(e.target.value));
             input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doPredict(); } });
 
@@ -63,25 +112,39 @@
                   method: 'POST', headers: {'Content-Type':'application/json'},
                   body: JSON.stringify({patient_id: id, id_col})
                 });
-                const data = await resp.json();
+                let text = await resp.text();
+                let data = null;
+                try {
+                  data = JSON.parse(text);
+                } catch (e) {
+                  // show raw response for debugging
+                  console.error('Invalid JSON from API', resp.status, text);
+                  resultArea.innerHTML = `<div class='alert alert-danger'>Invalid JSON response (status ${resp.status})<pre style='white-space:pre-wrap;color:#111;background:#ffdede;padding:10px;border-radius:6px;margin-top:10px;'>${escapeHtml(text).slice(0,2000)}</pre></div>`;
+                  return;
+                }
                 if (!resp.ok) {
-                  resultArea.innerHTML = `<div class='alert alert-danger'>${data.error || 'Error'}</div>`;
+                  console.error('API error', resp.status, data);
+                  resultArea.innerHTML = `<div class='alert alert-danger'>${data.error || 'Error contacting API (status '+resp.status+')'}</div>`;
                   return;
                 }
                 // render inline
+                // humanize values client-side as a fallback
+                const humanized = humanizeInfoJS(data.patient_info || {});
                 let html = `<div class='card'><div class='card-body'>`;
                 html += `<h5>Patient ${data.patient_id}</h5>`;
-                html += `<p><strong>Prediction:</strong> ${data.prediction} <small class='text-muted'>(raw: ${data.raw})</small></p>`;
+                html += `<p><strong>Prediction:</strong> ${data.prediction}</p>`;
                 html += `<h6>Essential details</h6><ul class='list-group mb-3'>`;
-                for (const [k,v] of Object.entries(data.patient_info)) {
+                for (const [k,v] of Object.entries(humanized)) {
                   html += `<li class='list-group-item'><strong>${k}:</strong> ${v}</li>`;
                 }
                 html += `</ul><h6>Top features</h6><ol>`;
                 for (const r of data.reasons) html += `<li>${r}</li>`;
                 html += `</ol></div></div>`;
                 resultArea.innerHTML = html;
+                suggestions.style.display='none';
               } catch (err) {
-                resultArea.innerHTML = `<div class='alert alert-danger'>${err.message}</div>`;
+                console.error('Fetch error', err);
+                resultArea.innerHTML = `<div class='alert alert-danger'>${err.message || 'Network error'}</div>`;
               }
             }
           </script>
